@@ -7,6 +7,8 @@
 		public bool HasValue => Value > 0;
 		public int Value { get; private set; } = 0;
 
+		public bool IsSolved { get; set; } = false;
+
 		public bool IsEmpty => Status == OhNoCellStatusEnum.Empty;
 		public bool IsBlocked => Status == OhNoCellStatusEnum.Blocked;
 		public bool IsFull => Status == OhNoCellStatusEnum.Full;

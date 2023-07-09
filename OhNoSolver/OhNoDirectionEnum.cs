@@ -1,6 +1,6 @@
 ﻿namespace brinux.ohnosolver
 {
-    internal enum OhNoDirectionEnum
+    public enum OhNoDirectionEnum
     {
         TOP = 0,
         RIGHT = 1,

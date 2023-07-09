@@ -27,7 +27,7 @@
 						case OhNoCellStatusEnum.Full:
 							Console.BackgroundColor = ConsoleColor.Cyan;
 							Console.ForegroundColor = ConsoleColor.DarkBlue;
-							Console.Write($" { schema.Cells[r][c].Value }{( schema.Cells[r][c].Value >= 10 ? "" : " " )}");
+							Console.Write($"{(schema.Cells[r][c].HasValue ? (schema.Cells[r][c].Value >= 10 ? schema.Cells[r][c].Value : (" " + schema.Cells[r][c].Value)) : "  ")} ");
 							break;
 
 						case OhNoCellStatusEnum.Blocked:

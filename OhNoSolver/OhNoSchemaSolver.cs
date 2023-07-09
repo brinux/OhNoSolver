@@ -11,15 +11,153 @@
 
 		public bool Solve()
 		{
-			bool result = false;
-
 			for (int r = 0; r < _schema.Cells.Length; r++)
 			{
 				for (int c = 0; c < _schema.Cells[0].Length; c++)
 				{
-					if (_schema.Cells[r][c].HasValue)
+					if (_schema.Cells[r][c].HasValue && !_schema.Cells[r][c].IsSolved)
 					{
-                        result = SolveCell(r, c);
+						if (SolveCell(new OhNoCellCoordinate(r, c, _schema)))
+						{
+							Console.WriteLine();
+
+							return true;
+						}
+					}
+				}
+			}
+
+			return false;
+		}
+
+		public bool SolveCell(OhNoCellCoordinate currentCell)
+		{
+			var fullCellsCounts = CountSequenceLengths(currentCell).ToDictionary(i => i.Key, i => i.Value - 1);
+			var fullCellsTotal = fullCellsCounts.Sum(l => l.Value);
+
+			var availabilities = CountAvailableCells(currentCell, fullCellsTotal);
+			var availabilitiesTotal = availabilities.Sum(a => a.Value.CountTotalLength);
+
+			//Console.WriteLine($"Cell {currentCell.Row}:{currentCell.Column} - Count: {fullCellsCounts[OhNoDirectionEnum.TOP]}, {fullCellsCounts[OhNoDirectionEnum.RIGHT]}, {fullCellsCounts[OhNoDirectionEnum.BOTTOM]}, {fullCellsCounts[OhNoDirectionEnum.LEFT]} - Available: {availabilities[OhNoDirectionEnum.TOP].CountTotalLength}, {availabilities[OhNoDirectionEnum.RIGHT].CountTotalLength}, {availabilities[OhNoDirectionEnum.BOTTOM].CountTotalLength}, {availabilities[OhNoDirectionEnum.LEFT].CountTotalLength}");
+
+			if (availabilitiesTotal < currentCell.Cell.Value - fullCellsTotal)
+			{
+				throw new Exception($"Error: it is not possible to satisfy cell {currentCell.Row}:{currentCell.Column} requirement of {currentCell.Cell.Value}.");
+			}
+
+			if (currentCell.Cell.Value < fullCellsTotal)
+			{
+				throw new Exception($"Error: cell {currentCell.Row}:{currentCell.Column} has {fullCellsTotal} connected cells, but should have only {currentCell.Cell.Value}.");
+            }
+
+            if (currentCell.Cell.Value == fullCellsTotal)
+			{
+				AddFinalBlocks(currentCell);
+
+				currentCell.Cell.IsSolved = true;
+
+				return true;
+			}
+
+			// Tutte le celle disponibili vanno riempite
+			if (availabilitiesTotal == currentCell.Cell.Value - fullCellsTotal)
+			{
+				Console.WriteLine("All available cells should be filled");
+
+				foreach (var availabilitiesInDirection in availabilities.Values.ToList())
+				{
+					if (availabilitiesInDirection.CountMoves > 0)
+					{
+						foreach (var availability in availabilitiesInDirection)
+						{
+							availability.Coordinates.Cell.Status = OhNoCellStatusEnum.Full; 
+						}
+
+						var lastMove = availabilitiesInDirection.Last();
+
+						if (lastMove.Coordinates.CanProceed(availabilitiesInDirection.Direction, lastMove.Length))
+						{
+							var finalCell = lastMove.Coordinates.Move(availabilitiesInDirection.Direction, lastMove.Length);
+
+							if (finalCell.Cell.IsEmpty)
+							{
+								finalCell.Cell.Status = OhNoCellStatusEnum.Blocked;
+							}
+						}
+					}
+				}
+
+				Console.WriteLine("Ending blocks shouold be added if possible cells should be filled");
+
+				AddFinalBlocks(currentCell);
+
+				currentCell.Cell.IsSolved = true;
+
+				return true;
+			}
+
+			// Prova ad aggiungere dei blocchi intorno alla cella
+			if (AddMissingBlocks(currentCell, fullCellsTotal))
+			{
+				return true;
+			}
+
+			// Espandi in tutte le direzioni, se possibile
+			if (ExpandCell(currentCell, fullCellsTotal, availabilities))
+			{
+				// Verifica se la cella è completa
+				if (fullCellsTotal == currentCell.Cell.Value)
+				{
+					AddFinalBlocks(currentCell);
+
+                    currentCell.Cell.IsSolved = true;
+				}
+
+				return true;
+			}
+
+			return false;
+		}
+
+		private bool ExpandCell(OhNoCellCoordinate currentCell, int fullCellsTotal, Dictionary<OhNoDirectionEnum, OhNoCellMoves> availabilities)
+		{
+			var result = false;
+
+			foreach (OhNoDirectionEnum direction in Enum.GetValues(typeof(OhNoDirectionEnum)))
+			{
+				result |= ExpandCellInDirection(currentCell, fullCellsTotal, direction, availabilities);
+			}
+
+			return result;
+		}
+
+		private bool ExpandCellInDirection(OhNoCellCoordinate currentCell, int fullCellsTotal, OhNoDirectionEnum direction, Dictionary<OhNoDirectionEnum, OhNoCellMoves> availabilities)
+		{
+			var result = false;
+				
+			var availabilitiesCountInTheOtherDirections = availabilities.Where(a => a.Key != direction).Sum(a => a.Value.CountTotalLength);
+
+			if (availabilitiesCountInTheOtherDirections + fullCellsTotal < currentCell.Cell.Value && availabilities[direction].CountMoves > 0)
+			{
+				//Console.WriteLine($"Should expand on top - Current: {fullCellsTotal} - Target: {currentCell.Cell.Value} - Available: {availabilities[direction].CountTotalLength} in {availabilities[direction].CountMoves} moves");
+
+				var missingCoverage = currentCell.Cell.Value - fullCellsTotal - availabilitiesCountInTheOtherDirections;
+				var addedCoverage = 0;
+
+				foreach (var availability in availabilities[direction])
+				{
+					if (missingCoverage >= addedCoverage + 1 /*+ availability.Length*/)
+					{
+						availability.Coordinates.Cell.Status = OhNoCellStatusEnum.Full;
+						addedCoverage += availability.Length;
+
+						Console.WriteLine($"Filled cell {availability.Coordinates.Row+1}:{availability.Coordinates.Column+1} from cell {currentCell.Row+1}:{currentCell.Column+1} in direction '{direction}' - Total length: +{availability.Length}");
+
+						result = true;
+					}
+					else
+					{
+						break;
 					}
 				}
 			}
@@ -27,107 +165,139 @@
 			return result;
 		}
 
-		public bool SolveCell(int r, int c)
+		private bool AddFinalBlocks(OhNoCellCoordinate cell)
 		{
 			var result = false;
 
-			var currentCell = new OhNoCellCoordinate(r, c);
-
-            var fullOnTop = CountSequenceLength(OhNoDirectionEnum.TOP, currentCell) - 1;
-			var fullOnRight = CountSequenceLength(OhNoDirectionEnum.RIGHT, currentCell) - 1;
-            var fullOnBottom = CountSequenceLength(OhNoDirectionEnum.BOTTOM, currentCell) - 1;
-            var fullOnLeft = CountSequenceLength(OhNoDirectionEnum.LEFT, currentCell) - 1;
-
-            var fullTotal = fullOnTop + fullOnRight + fullOnBottom + fullOnLeft;
-
-			if (fullTotal == _schema.Cells[r][c].Value)
+			foreach (OhNoDirectionEnum direction in Enum.GetValues(typeof(OhNoDirectionEnum)))
 			{
-				// blocca cella
-
-				return result;
+				result |= AddFinalBlockInDirection(direction, cell);
 			}
-
-			var availableOnTop = CountAvailableCells(OhNoDirectionEnum.TOP, currentCell, fullTotal);
-			var availableOnRight = CountAvailableCells(OhNoDirectionEnum.RIGHT, currentCell, fullTotal);
-            var availableOnBottom = CountAvailableCells(OhNoDirectionEnum.BOTTOM, currentCell, fullTotal);
-            var availableOnLeft = CountAvailableCells(OhNoDirectionEnum.LEFT, currentCell, fullTotal);
-
-            var availableTotal =
-				availableOnTop.CountTotalLength +
-				availableOnRight.CountTotalLength +
-				availableOnBottom.CountTotalLength +
-				availableOnLeft.CountTotalLength;
-
-			Console.WriteLine($"Cell {r+1}:{c+1} - Count: {fullOnTop}, {fullOnRight}, {fullOnBottom}, {fullOnLeft} - Available: {availableOnTop.CountTotalLength}, {availableOnRight.CountTotalLength}, {availableOnBottom.CountTotalLength}, {availableOnLeft.CountTotalLength}");
-
-			if (availableTotal == _schema.Cells[r][c].Value - fullTotal)
-			{
-				// riempi tutte
-				Console.WriteLine("All available cells should be filled");
-
-				result = true;
-			}
-			else if (availableTotal < _schema.Cells[r][c].Value - fullTotal)
-			{
-				throw new Exception($"Error: it is not possible to satisfy cell {r + 1}:{c + 1} requirement of {_schema.Cells[r][c].Value}.");
-			}
-			else
-			{
-				// Expansion on top
-				if (availableOnRight.CountTotalLength + availableOnBottom.CountTotalLength + availableOnLeft.CountTotalLength < _schema.Cells[r][c].Value && availableOnTop.CountMoves > 0)
-				{
-                    // expand on top
-                    Console.WriteLine($"Should expand on top - Current: {fullTotal} - Target: {_schema.Cells[r][c].Value} - Available: {availableOnTop.CountTotalLength} in {availableOnTop.CountMoves} moves");
-                }
-
-                // Expansion on the right
-                if (availableOnBottom.CountTotalLength + availableOnLeft.CountTotalLength + availableOnTop.CountTotalLength < _schema.Cells[r][c].Value && availableOnRight.CountMoves > 0)
-                {
-                    // expand on right
-                    Console.WriteLine($"Should expand on right - Current: {fullTotal} - Target: {_schema.Cells[r][c].Value} - Available: {availableOnRight.CountTotalLength} in {availableOnRight.CountMoves} moves");
-                }
-
-                // Expansion on bottom
-                if (availableOnLeft.CountTotalLength + availableOnTop.CountTotalLength + availableOnRight.CountTotalLength < _schema.Cells[r][c].Value && availableOnBottom.CountMoves > 0)
-                {
-                    // expand on bottom
-                    Console.WriteLine($"Should expand on bottom - Current: {fullTotal} - Target: {_schema.Cells[r][c].Value} - Available: {availableOnBottom.CountTotalLength} in {availableOnBottom.CountMoves} moves");
-                }
-
-                // Expansion on the left
-                if (availableOnTop.CountTotalLength + availableOnRight.CountTotalLength + availableOnBottom.CountTotalLength < _schema.Cells[r][c].Value && availableOnLeft.CountMoves > 0)
-                {
-                    // expand on left
-                    Console.WriteLine($"Should expand on left - Current: {fullTotal} - Target: {_schema.Cells[r][c].Value} - Available: {availableOnLeft.CountTotalLength} in {availableOnLeft.CountMoves} moves");
-                }
-            }
-
-			Console.ReadKey();
 
 			return result;
 		}
 
-		private OhNoCellMoves CountAvailableCells(OhNoDirectionEnum direction, OhNoCellCoordinate startingCell, int currentCellsCount)
+		private bool AddFinalBlockInDirection(OhNoDirectionEnum direction, OhNoCellCoordinate startingCell)
 		{
+			var result = false;
+
 			var cell = startingCell;
-			var availabilities = new OhNoCellMoves();
 
-			while (CanProceed(direction, cell))
+			while (cell.CanProceed(direction))
 			{
-				cell = Move(direction, cell);
+				var nextCell = cell.Move(direction);
 
-				if (_schema.Cells[cell.Row][cell.Column].Status == OhNoCellStatusEnum.Empty)
+				if (!nextCell.Cell.IsFull)
 				{
 					break;
 				}
-            }
 
-			if (_schema.Cells[cell.Row][cell.Column].IsEmpty)
+				cell = nextCell;
+			}
+
+			if (cell.CanProceed(direction))
+			{
+				var nextCell = cell.Move(direction);
+
+				if (nextCell.Cell.IsEmpty)
+				{
+					nextCell.Cell.Status = OhNoCellStatusEnum.Blocked;
+
+					Console.WriteLine($"Blocked cell {nextCell.Row + 1}:{nextCell.Column + 1} from cell {startingCell.Row + 1}:{startingCell.Column + 1} completion in direction '{direction}'.");
+
+					result = true;
+				}
+			}
+
+			return result;
+		}
+
+		private bool AddMissingBlocks(OhNoCellCoordinate cell, int totalCount)
+		{
+			var result = false;
+
+			foreach (OhNoDirectionEnum direction in Enum.GetValues(typeof(OhNoDirectionEnum)))
+			{
+				result |= AddMissingBlockInDirection(direction, cell, totalCount);
+			}
+
+			return result;
+		}
+
+		private bool AddMissingBlockInDirection(OhNoDirectionEnum direction, OhNoCellCoordinate startingCell, int totalCount)
+		{
+			var result = false;
+
+			var cell = startingCell;
+
+			while (cell.CanProceed(direction))
+			{
+				var nextCell = cell.Move(direction);
+
+				if (!nextCell.Cell.IsFull)
+				{
+					break;
+				}
+
+				cell = nextCell;
+			}
+
+			if (cell.CanProceed(direction) && cell.CanProceed(direction, 2))
+			{
+				var nextCell = cell.Move(direction);
+				var followingCell = cell.Move(direction, 2);
+
+				if (nextCell.Cell.IsEmpty && followingCell.Cell.IsFull)
+				{
+					var sequenceLength = CountSequenceLengthInDirection(direction, followingCell);
+
+					if (startingCell.Cell.Value < totalCount + sequenceLength + 1)
+					{
+						nextCell.Cell.Status = OhNoCellStatusEnum.Blocked;
+
+						Console.WriteLine($"Blocked cell {nextCell.Row + 1}:{nextCell.Column + 1} from cell {startingCell.Row + 1}:{startingCell.Column + 1} in direction '{direction}'.");
+
+						result = true;
+					}
+				}
+			}
+
+			return result;
+		}
+
+		private Dictionary<OhNoDirectionEnum, OhNoCellMoves> CountAvailableCells(OhNoCellCoordinate startingCell, int currentCellsCount)
+		{
+			var counts = new Dictionary<OhNoDirectionEnum, OhNoCellMoves>();
+
+			foreach (OhNoDirectionEnum direction in Enum.GetValues(typeof(OhNoDirectionEnum)))
+			{
+				counts.Add(direction, CountAvailableCellsInDirection(direction, startingCell, currentCellsCount));
+			}
+
+			return counts;
+		}
+
+		private OhNoCellMoves CountAvailableCellsInDirection(OhNoDirectionEnum direction, OhNoCellCoordinate startingCell, int currentCellsCount)
+		{
+			var cell = startingCell;
+			var availabilities = new OhNoCellMoves(direction);
+
+			while (cell.CanProceed(direction))
+			{
+				cell = cell.Move(direction);
+
+				if (!cell.Cell.IsFull)
+				{
+					break;
+				}
+			}
+
+			if (cell.Cell.IsEmpty)
 			{
 				do
 				{
 					// C'è una cella dopo?
-					if (!CanProceed(direction, cell))
+					if (!cell.CanProceed(direction))
 					{
 						// No: +1, ed esco
 						availabilities.Add(new OhNoCellMove(cell, 1));
@@ -137,13 +307,18 @@
 					else
 					{
 						// Si: diche tipo è?
-						var nextCell = Move(direction, cell);
+						var nextCell = cell.Move(direction);
 
-						switch (_schema.Cells[nextCell.Row][nextCell.Column].Status)
+						switch (nextCell.Cell.Status)
 						{
 							// Vuota: +1 e procedi
 							case OhNoCellStatusEnum.Empty:
 								availabilities.Add(new OhNoCellMove(cell, 1));
+
+								if (currentCellsCount + availabilities.CountTotalLength == startingCell.Cell.Value)
+								{
+									return availabilities;
+								}
 
 								cell = nextCell;
 								break;
@@ -154,23 +329,23 @@
 								return availabilities;
 							// Full: quanto è lunga la sequenza, compresa la cella correte?
 							case OhNoCellStatusEnum.Full:
-								int length = CountSequenceLength(direction, nextCell);
+								int length = CountSequenceLengthInDirection(direction, nextCell);
 
 								// Quanto il target: +1 + lunghezza sequenza ed esco
-								if (length + currentCellsCount == _schema.Cells[startingCell.Row][startingCell.Column].Value)
+								if (length + currentCellsCount + availabilities.CountTotalLength == startingCell.Cell.Value)
 								{
 									availabilities.Add(new OhNoCellMove(cell, length + 1));
 
 									return availabilities;
 								}
 								// Meno del target: +1 +lunghezza sequenza e procedo dalla fine della sequenza							
-								else if (length + currentCellsCount < _schema.Cells[startingCell.Row][startingCell.Column].Value)
+								else if (length + currentCellsCount + availabilities.CountTotalLength < startingCell.Cell.Value)
 								{
 									availabilities.Add(new OhNoCellMove(cell, length + 1));
 
-									if (CanProceed(direction, nextCell, length))
+									if (nextCell.CanProceed(direction, length))
 									{
-										cell = Move(direction, nextCell, length);
+										cell = nextCell.Move(direction, length);
 									}
 									else
 									{
@@ -193,52 +368,30 @@
 			return availabilities;
 		}
 
-		private bool CanProceed(OhNoDirectionEnum direction, OhNoCellCoordinate cell, int steps = 1)
+		private Dictionary<OhNoDirectionEnum, int> CountSequenceLengths(OhNoCellCoordinate cell)
 		{
-			switch (direction)
+			var counts = new Dictionary<OhNoDirectionEnum, int>();
+
+			foreach (OhNoDirectionEnum direction in Enum.GetValues(typeof(OhNoDirectionEnum)))
 			{
-				case OhNoDirectionEnum.TOP:
-					return cell.Row - steps >= 0;
-				case OhNoDirectionEnum.BOTTOM:
-					return cell.Row + steps < _schema.Cells.Length;
-				case OhNoDirectionEnum.LEFT:
-					return cell.Column - steps >= 0;
-				case OhNoDirectionEnum.RIGHT:
-					return cell.Column + steps < _schema.Cells.Length;
+				counts.Add(direction, CountSequenceLengthInDirection(direction, cell));
 			}
 
-			throw new NotImplementedException($"Missing implementation for direction: {direction}");
+			return counts;
 		}
 
-		private OhNoCellCoordinate Move(OhNoDirectionEnum direction, OhNoCellCoordinate cell, int steps = 1)
+		private int CountSequenceLengthInDirection(OhNoDirectionEnum direction, OhNoCellCoordinate cell)
 		{
-            switch (direction)
-            {
-                case OhNoDirectionEnum.TOP:
-                    return new OhNoCellCoordinate(cell.Row - steps, cell.Column);
-                case OhNoDirectionEnum.BOTTOM:
-                    return new OhNoCellCoordinate(cell.Row + steps, cell.Column);
-                case OhNoDirectionEnum.LEFT:
-                    return new OhNoCellCoordinate(cell.Row, cell.Column - steps);
-                case OhNoDirectionEnum.RIGHT:
-                    return new OhNoCellCoordinate(cell.Row, cell.Column + steps);
-            }
-
-            throw new NotImplementedException($"Missing implementation for direction: {direction}");
-        }
-
-        private int CountSequenceLength(OhNoDirectionEnum direction, OhNoCellCoordinate cell)
-        {
 			var currentCell = cell;
 			int count = 0;
 
-			while (_schema.Cells[currentCell.Row][currentCell.Column].Status == OhNoCellStatusEnum.Full)
+			while (currentCell.Cell.Status == OhNoCellStatusEnum.Full)
 			{
 				count++;
 
-				if (CanProceed(direction, currentCell))
+				if (currentCell.CanProceed(direction))
 				{
-					currentCell = Move(direction, currentCell);
+					currentCell = currentCell.Move(direction);
 				}
 				else
 				{
@@ -247,6 +400,6 @@
 			}
 
 			return count;
-        }
-    }
+		}
+	}
 }

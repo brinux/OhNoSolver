@@ -2,12 +2,12 @@
 {
     internal class OhNoCellMove
     {
-        public OhNoCellCoordinate Cell { get; set; }
+        public OhNoCellCoordinate Coordinates { get; set; }
         public int Length { get; set; }
 
-        public OhNoCellMove(OhNoCellCoordinate cell, int length)
+        public OhNoCellMove(OhNoCellCoordinate coordinates, int length)
         {
-            Cell = cell;
+            Coordinates = coordinates;
             Length = length;
         }
     }
