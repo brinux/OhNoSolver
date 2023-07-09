@@ -47,5 +47,42 @@
 				}
 			}
 		}
-	}
+
+		public bool IsSolved()
+		{
+            for (int r = 0; r < Cells.Length; r++)
+            {
+                for (int c = 0; c < Cells[0].Length; c++)
+                {
+                    if (Cells[r][c].HasValue && !Cells[r][c].IsSolved)
+                    {
+						return false;
+                    }
+                }
+            }
+
+			return true;
+        }
+
+        public bool IsCompleted()
+        {
+			if (!IsSolved())
+			{
+				return false;
+			}
+
+            for (int r = 0; r < Cells.Length; r++)
+            {
+                for (int c = 0; c < Cells[0].Length; c++)
+                {
+                    if (Cells[r][c].IsEmpty)
+                    {
+                        return false;
+                    }
+                }
+            }
+
+            return true;
+        }
+    }
 }

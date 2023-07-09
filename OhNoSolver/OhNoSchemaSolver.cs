@@ -11,20 +11,41 @@
 
 		public bool Solve()
 		{
-			for (int r = 0; r < _schema.Cells.Length; r++)
+			if (!_schema.IsSolved())
 			{
-				for (int c = 0; c < _schema.Cells[0].Length; c++)
+				for (int r = 0; r < _schema.Cells.Length; r++)
 				{
-					if (_schema.Cells[r][c].HasValue && !_schema.Cells[r][c].IsSolved)
+					for (int c = 0; c < _schema.Cells[0].Length; c++)
 					{
-						if (SolveCell(new OhNoCellCoordinate(r, c, _schema)))
+						if (_schema.Cells[r][c].HasValue && !_schema.Cells[r][c].IsSolved)
 						{
-							Console.WriteLine();
+							if (SolveCell(new OhNoCellCoordinate(r, c, _schema)))
+							{
+								Console.WriteLine();
 
-							return true;
+								return true;
+							}
 						}
 					}
 				}
+			}
+			else if (!_schema.IsCompleted())
+			{
+				for (int r = 0; r < _schema.Cells.Length; r++)
+				{
+					for (int c = 0; c < _schema.Cells[0].Length; c++)
+					{
+						if (_schema.Cells[r][c].IsEmpty)
+						{
+							_schema.Cells[r][c].Status = OhNoCellStatusEnum.Blocked;
+
+							Console.WriteLine($"Cell {r+1}:{c+1} was blocked since it was not relevant");
+							Console.WriteLine();
+						}
+					}
+				}
+
+				return true;
 			}
 
 			return false;
@@ -47,14 +68,12 @@
 
 			if (currentCell.Cell.Value < fullCellsTotal)
 			{
-				throw new Exception($"Error: cell {currentCell.Row}:{currentCell.Column} has {fullCellsTotal} connected cells, but should have only {currentCell.Cell.Value}.");
-            }
+				throw new Exception($"Error: cell {currentCell.Row}:{currentCell.Column} has {fullCellsTotal} connected cells, but should have only {currentCell.Cell.Value}");
+			}
 
-            if (currentCell.Cell.Value == fullCellsTotal)
+			if (currentCell.Cell.Value == fullCellsTotal)
 			{
 				AddFinalBlocks(currentCell);
-
-				currentCell.Cell.IsSolved = true;
 
 				return true;
 			}
@@ -62,36 +81,7 @@
 			// Tutte le celle disponibili vanno riempite
 			if (availabilitiesTotal == currentCell.Cell.Value - fullCellsTotal)
 			{
-				Console.WriteLine("All available cells should be filled");
-
-				foreach (var availabilitiesInDirection in availabilities.Values.ToList())
-				{
-					if (availabilitiesInDirection.CountMoves > 0)
-					{
-						foreach (var availability in availabilitiesInDirection)
-						{
-							availability.Coordinates.Cell.Status = OhNoCellStatusEnum.Full; 
-						}
-
-						var lastMove = availabilitiesInDirection.Last();
-
-						if (lastMove.Coordinates.CanProceed(availabilitiesInDirection.Direction, lastMove.Length))
-						{
-							var finalCell = lastMove.Coordinates.Move(availabilitiesInDirection.Direction, lastMove.Length);
-
-							if (finalCell.Cell.IsEmpty)
-							{
-								finalCell.Cell.Status = OhNoCellStatusEnum.Blocked;
-							}
-						}
-					}
-				}
-
-				Console.WriteLine("Ending blocks shouold be added if possible cells should be filled");
-
-				AddFinalBlocks(currentCell);
-
-				currentCell.Cell.IsSolved = true;
+				FillAllCellAvailabilities(currentCell, availabilities);
 
 				return true;
 			}
@@ -109,17 +99,47 @@
 				if (fullCellsTotal == currentCell.Cell.Value)
 				{
 					AddFinalBlocks(currentCell);
+                }
 
-                    currentCell.Cell.IsSolved = true;
-				}
-
-				return true;
+                return true;
 			}
 
 			return false;
 		}
 
-		private bool ExpandCell(OhNoCellCoordinate currentCell, int fullCellsTotal, Dictionary<OhNoDirectionEnum, OhNoCellMoves> availabilities)
+		private void FillAllCellAvailabilities(OhNoCellCoordinate cell, Dictionary<OhNoDirectionEnum, OhNoCellMoves> availabilities)
+		{
+			foreach (var availabilitiesInDirection in availabilities.Values.ToList())
+			{
+				if (availabilitiesInDirection.CountMoves > 0)
+				{
+					foreach (var availability in availabilitiesInDirection)
+					{
+						availability.Coordinates.Cell.Status = OhNoCellStatusEnum.Full;
+
+						Console.WriteLine($"Cell {availability.Coordinates.Row+1}:{availability.Coordinates.Column+1} was filled since all availabilities for cell {cell.Row+1}:{cell.Column+1} must be to satify its requirement of {cell.Cell.Value} in direction '{availabilitiesInDirection.Direction}'");
+					}
+
+					var lastMove = availabilitiesInDirection.Last();
+
+					if (lastMove.Coordinates.CanProceed(availabilitiesInDirection.Direction, lastMove.Length))
+					{
+						var finalCell = lastMove.Coordinates.Move(availabilitiesInDirection.Direction, lastMove.Length);
+
+						if (finalCell.Cell.IsEmpty)
+						{
+							finalCell.Cell.Status = OhNoCellStatusEnum.Blocked;
+
+							Console.WriteLine($"Cell {finalCell.Row + 1}:{finalCell.Column + 1} was blocked in direction '{availabilitiesInDirection.Direction}' after adding the required cells for cell {cell.Row + 1}:{cell.Column + 1}");
+						}
+					}
+				}
+			}
+
+			AddFinalBlocks(cell);
+        }
+
+        private bool ExpandCell(OhNoCellCoordinate currentCell, int fullCellsTotal, Dictionary<OhNoDirectionEnum, OhNoCellMoves> availabilities)
 		{
 			var result = false;
 
@@ -174,7 +194,16 @@
 				result |= AddFinalBlockInDirection(direction, cell);
 			}
 
-			return result;
+			if (!cell.Cell.IsSolved)
+			{
+				cell.Cell.IsSolved = true;
+
+				Console.WriteLine($"Cell {cell.Row + 1}:{cell.Column + 1} is completed");
+
+				result = true;
+			}
+
+            return result;
 		}
 
 		private bool AddFinalBlockInDirection(OhNoDirectionEnum direction, OhNoCellCoordinate startingCell)
@@ -203,7 +232,7 @@
 				{
 					nextCell.Cell.Status = OhNoCellStatusEnum.Blocked;
 
-					Console.WriteLine($"Blocked cell {nextCell.Row + 1}:{nextCell.Column + 1} from cell {startingCell.Row + 1}:{startingCell.Column + 1} completion in direction '{direction}'.");
+					Console.WriteLine($"Blocked cell {nextCell.Row + 1}:{nextCell.Column + 1} from cell {startingCell.Row + 1}:{startingCell.Column + 1} completion in direction '{direction}'");
 
 					result = true;
 				}

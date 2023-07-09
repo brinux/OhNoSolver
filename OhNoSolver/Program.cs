@@ -77,10 +77,17 @@
 			{
                 OhNoSchemaPrinter.PrintSchema(schema);
              
-				Console.ReadKey();
+				//Console.ReadKey();
 			}
 
-			OhNoSchemaPrinter.PrintSchema(schema);
+			if (schema.IsCompleted())
+			{
+				Console.WriteLine("Schema correctly completed");
+			}
+			else
+			{
+                Console.WriteLine("It was not possible to complete the schema");
+			}
 		}
 	}
 }
