@@ -8,4 +8,8 @@
     <RootNamespace>brinux.ohnosolver</RootNamespace>
   </PropertyGroup>
 
+  <ItemGroup>
+    <Folder Include="Documentation\" />
+  </ItemGroup>
+
 </Project>

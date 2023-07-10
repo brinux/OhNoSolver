@@ -1,6 +1,6 @@
 ﻿namespace brinux.ohnosolver
 {
-    internal class OhNoCellMove
+    public class OhNoCellMove
     {
         public OhNoCellCoordinate Coordinates { get; set; }
         public int Length { get; set; }
