@@ -23,11 +23,11 @@
                 case OhNoDirectionEnum.TOP:
                     return Row - steps >= 0;
                 case OhNoDirectionEnum.BOTTOM:
-                    return Row + steps < _schema.Cells.Length;
+                    return Row + steps < _schema.Height;
                 case OhNoDirectionEnum.LEFT:
                     return Column - steps >= 0;
                 case OhNoDirectionEnum.RIGHT:
-                    return Column + steps < _schema.Cells.Length;
+                    return Column + steps < _schema.Width;
             }
 
             throw new NotImplementedException($"Missing implementation for direction: {direction}");

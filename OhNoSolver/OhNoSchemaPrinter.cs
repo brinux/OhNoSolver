@@ -10,17 +10,17 @@
 			}
 
 			Console.Write("   ");
-			for (int r = 0; r < schema.Cells.Length; r++)
+			for (int c = 0; c < schema.Width; c++)
 			{
-				Console.Write($" { r + 1 }{(r < 10 ? " " : "")}");
+				Console.Write($" { c + 1 }{(c < 10 ? " " : "")}");
 			}
 			Console.WriteLine();
 
-			for (int r = 0; r < schema.Cells.Length; r++)
+			for (int r = 0; r < schema.Height; r++)
 			{
 				Console.Write($" { r + 1 }{(r + 1 < 10 ? " " : "")}");
 
-				for (int c = 0; c < schema.Cells[0].Length; c++)
+				for (int c = 0; c < schema.Width; c++)
 				{
 					switch (schema.Cells[r][c].Status)
 					{

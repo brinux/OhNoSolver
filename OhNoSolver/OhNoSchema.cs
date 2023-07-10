@@ -4,32 +4,38 @@
 	{
 		public OhNoCell[][] Cells { get; private set; }
 
-		public OhNoSchema(int heigth, int length)
+		public int Height { get; private set; }
+		public int Width { get; private set; }
+
+        public OhNoSchema(int height, int width)
 		{
-			Cells = new OhNoCell[heigth][];
+			Height = height;
+			Width = width;
 
-			for (int r = 0; r < heigth; r++)
+			Cells = new OhNoCell[Height][];
+
+			for (int r = 0; r < Height; r++)
 			{
-				Cells[r] = new OhNoCell[length];
+				Cells[r] = new OhNoCell[Width];
 
-				for (int c = 0; c < length; c++)
+				for (int c = 0; c < Width; c++)
 				{
 					Cells[r][c] = new OhNoCell();
 				}
 			}
 		}
 
-		public OhNoSchema(int heigth, int length, List<OhNoCellSetup> setup) : this(heigth, length)
+		public OhNoSchema(int height, int width, List<OhNoCellSetup> setup) : this(height, width)
 		{
 			foreach (var cell in setup)
 			{
-				if (cell.Row >= Cells.Length)
+				if (cell.Row >= Height)
 				{
-					throw new ArgumentException($"The setup for cell at { cell.Row }:{ cell.Column } is out of the configured schema ({ Cells.Length }x{ Cells[0].Length } ).");
+					throw new ArgumentException($"The setup for cell at { cell.Row }:{ cell.Column } is out of the configured schema ({ Height }x{ Width }).");
 				}
-				else if (cell.Column >= Cells[0].Length)
+				else if (cell.Column >= Width)
 				{
-					throw new ArgumentException($"The setup for cell at { cell.Row }:{ cell.Column } is out of the configured schema ({ Cells.Length }x{ Cells[0].Length } ).");
+					throw new ArgumentException($"The setup for cell at { cell.Row }:{ cell.Column } is out of the configured schema ({ Height }x{ Width }).");
 				}
 
 				switch (cell.Status)
@@ -50,9 +56,9 @@
 
 		public bool IsSolved()
 		{
-            for (int r = 0; r < Cells.Length; r++)
+            for (int r = 0; r < Height; r++)
             {
-                for (int c = 0; c < Cells[0].Length; c++)
+                for (int c = 0; c < Width; c++)
                 {
                     if (Cells[r][c].HasValue && !Cells[r][c].IsSolved)
                     {
@@ -71,9 +77,9 @@
 				return false;
 			}
 
-            for (int r = 0; r < Cells.Length; r++)
+            for (int r = 0; r < Height; r++)
             {
-                for (int c = 0; c < Cells[0].Length; c++)
+                for (int c = 0; c < Width; c++)
                 {
                     if (Cells[r][c].IsEmpty)
                     {

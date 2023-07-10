@@ -22,9 +22,9 @@
 		{
 			if (!_schema.IsSolved())
 			{
-				for (int r = 0; r < _schema.Cells.Length; r++)
+				for (int r = 0; r < _schema.Height; r++)
 				{
-					for (int c = 0; c < _schema.Cells[0].Length; c++)
+					for (int c = 0; c < _schema.Width; c++)
 					{
 						if (_schema.Cells[r][c].HasValue && !_schema.Cells[r][c].IsSolved)
 						{
@@ -40,9 +40,9 @@
 			}
 			else if (!_schema.IsCompleted())
 			{
-				for (int r = 0; r < _schema.Cells.Length; r++)
+				for (int r = 0; r < _schema.Height; r++)
 				{
-					for (int c = 0; c < _schema.Cells[0].Length; c++)
+					for (int c = 0; c < _schema.Width; c++)
 					{
 						if (_schema.Cells[r][c].IsEmpty)
 						{
