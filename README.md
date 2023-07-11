@@ -71,5 +71,4 @@ else
 ## Improvements
 
 I'm already aware of a few potential improvements the come may leverage, mostly coming from playing similiar games, and I'll add them as soon as they'll be needed, or asked for.
-Also please notice that UnitTests are not working at the moment since they were based on a very old implementation; I'm planning to fix them in the future.
 In case you find any bug, need additional features, or anything, feel free to get in touch.

@@ -326,6 +326,11 @@
                                     if (nextCell.CanProceed(direction, length))
                                     {
                                         cell = nextCell.Move(direction, length);
+
+                                        if (cell.Cell.IsBlocked)
+                                        {
+                                            return availabilities;
+                                        }
                                     }
                                     else
                                     {
